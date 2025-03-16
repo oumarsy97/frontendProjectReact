@@ -13,7 +13,7 @@ export const LoginForm = () => {
 
   // Liste des universités (à adapter selon vos besoins)
   const universities = [
-    { name: 'Université 1' },
+    { name: 'uadb' },
     { name: 'Université 2' },
     // Ajoutez vos universités ici
   ];

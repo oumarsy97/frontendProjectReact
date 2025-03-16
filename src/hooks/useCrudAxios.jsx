@@ -1,67 +1,125 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback } from 'react';
 import axios from 'axios';
-import { useTokenService } from '../utils/tokenUtils'; // Assurez-vous que le chemin est correct
 
-// eslint-disable-next-line no-undef
-const API_BASE_URL = process.env.REACT_APP_API_URL;
+export const useCrudAxios = (endpoint) => {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-const useCrud = (baseURL) => {
-    const { getToken } = useTokenService(); // Récupérer le token depuis utils
-    const [data, setData] = useState(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
+  const baseURL = import.meta.env.REACT_APP_API_URL || 'http://localhost:3000';
+  const api = axios.create({
+    baseURL,
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  });
 
-    const api = useMemo(() => {
-        // Créer une instance d'axios avec un intercepteur pour ajouter le token
-        const instance = axios.create({ baseURL: `${API_BASE_URL}/${baseURL}` });
+  // Intercepteur pour ajouter le token d'authentification
+  api.interceptors.request.use(
+    (config) => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    },
+    (error) => Promise.reject(error)
+  );
 
-        instance.interceptors.request.use(
-            config => {
-                const token = getToken(); // Obtenir le token
-               // console.log(token);
-                if (token) {
-                    config.headers.Authorization = `Bearer ${token}`; // Ajouter le token aux en-têtes
-                }
-                return config;
-            },
-            error => {
-                return Promise.reject(error);
-            }
-        );
+  // Récupérer tous les éléments
+  const fetch = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.get(endpoint);
+      setData(response.data.data || response.data);
+      return response.data.data || response.data;
+    } catch (err) {
+      setError(err.response?.data?.message || err.message);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [endpoint]);
 
-        return instance;
-    }, [baseURL, getToken]);
+  // Récupérer un élément par ID
+  const fetchById = useCallback(async (id) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.get(`${endpoint}/${id}`);
+      return response.data.data || response.data;
+    } catch (err) {
+      setError(err.response?.data?.message || err.message);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [endpoint]);
 
-    const request = useCallback(async (method, endpoint = '', payload = null) => {
-        setLoading(true);
-        setError(null);
-        try {
-            const response = await api[method](endpoint, payload);
-           // console.log(response.data.data)
-            setData(response.data.data);
-            return response.data.data;
-        } catch (err) {
-            setError(err);
-            throw err;
-        } finally {
-            setLoading(false);
-        }
-    }, [api]);
+  // Créer un nouvel élément
+  const create = useCallback(async (newItem) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.post(endpoint, newItem);
+      setData(prev => [...prev, response.data.data || response.data]);
+      return response.data.data || response.data;
+    } catch (err) {
+      setError(err.response?.data?.message || err.message);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [endpoint]);
 
-    const get = useCallback((id = '') => request('get', `/${id}`), [request]);
-    const create = useCallback((payload) => request('post', '/', payload), [request]);
-    const update = useCallback((id, payload) => request('put', `/${id}`, payload), [request]);
-    const remove = useCallback((id) => request('delete', `/${id}`), [request]);
+  // Mettre à jour un élément
+  const update = useCallback(async (id, updatedItem) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await api.put(`${endpoint}/${id}`, updatedItem);
+      setData(prev => 
+        prev.map(item => 
+          item.id === id ? (response.data.data || response.data) : item
+        )
+      );
+      return response.data.data || response.data;
+    } catch (err) {
+      setError(err.response?.data?.message || err.message);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [endpoint]);
 
-    return {
-        data,
-        loading,
-        error,
-        get,
-        create,
-        update,
-        remove,
-    };
+  // Supprimer un élément
+  const remove = useCallback(async (id) => {
+    setLoading(true);
+    setError(null);
+    try {
+      await api.delete(`${endpoint}/${id}`);
+      setData(prev => prev.filter(item => item.id !== id));
+      return true;
+    } catch (err) {
+      setError(err.response?.data?.message || err.message);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [endpoint]);
+
+  return {
+    data,
+    loading,
+    error,
+    fetch,
+    fetchById,
+    create,
+    update,
+    remove,
+    setData
+  };
 };
 
-export default useCrud;
+export default useCrudAxios;

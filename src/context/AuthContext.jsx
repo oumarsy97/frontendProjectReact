@@ -15,7 +15,8 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       setError(null);
       
-      const response = await axios.post('http://votre-api/auth/login', credentials);
+      // eslint-disable-next-line no-undef
+      const response = await axios.post(`${process.env.REACT_APP_API_URL}/auth/login`, credentials);
       
       if (response.data.token) {
         localStorage.setItem('token', response.data.token);
@@ -51,6 +52,7 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
